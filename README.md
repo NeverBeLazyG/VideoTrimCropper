@@ -35,7 +35,7 @@ A clean, modern desktop app for Windows, inspired by the Windows Photos trim exp
 
 <img src="docs/screenshot-start.png" width="640" alt="Trim view" />
 
-*Trim — drag the timeline handles to set start &amp; end*
+*Just drop a video in to get started*
 
 <img src="docs/screenshot-crop.png" width="640" alt="Crop mode" />
 
@@ -43,7 +43,7 @@ A clean, modern desktop app for Windows, inspired by the Windows Photos trim exp
 
 <img src="docs/screenshot-trim.png" width="640" alt="Drop screen" />
 
-*Just drop a video in to get started*
+*Trim — drag the timeline handles to set start &amp; end*
 
 </div>
 
