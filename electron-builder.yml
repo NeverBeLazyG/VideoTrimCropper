@@ -1,0 +1,42 @@
+appId: com.coderatilla.videotrimcropper
+productName: Video Trim Cropper
+copyright: Copyright © 2026 CoderAtilla
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - src/**/*
+  - package.json
+
+# ffmpeg/ffprobe-Binaries dürfen nicht ins asar-Archiv gepackt werden,
+# sonst sind sie zur Laufzeit nicht ausführbar.
+asarUnpack:
+  - node_modules/ffmpeg-static/**
+  - node_modules/ffprobe-static/**
+
+win:
+  icon: assets/VideoTrimCropper.ico
+  target:
+    - target: portable
+      arch:
+        - x64
+    - target: nsis
+      arch:
+        - x64
+
+portable:
+  artifactName: VideoTrimCropper-${version}-portable.exe
+
+nsis:
+  oneClick: false
+  perMachine: false           # Pro-Benutzer-Installation: keine UAC-Elevation, keine Modus-Auswahlseite
+  allowToChangeInstallationDirectory: true
+  artifactName: VideoTrimCropper-${version}-setup.exe
+  shortcutName: Video Trim Cropper
+  installerIcon: assets/VideoTrimCropper.ico
+  uninstallerIcon: assets/VideoTrimCropper.ico
+  installerHeaderIcon: assets/VideoTrimCropper.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

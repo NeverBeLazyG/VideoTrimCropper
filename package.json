@@ -1,0 +1,36 @@
+{
+  "name": "video-trim-cropper",
+  "version": "1.1.2",
+  "description": "Easy to use, modern, hardware-accelerated video trimmer and cropper — lossless trim + crop in one pass, powered by ffmpeg.",
+  "main": "src/main/main.js",
+  "author": "NeverBeLazyG",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/NeverBeLazyG/VideoTrimCropper",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NeverBeLazyG/VideoTrimCropper.git"
+  },
+  "keywords": [
+    "video",
+    "trim",
+    "crop",
+    "ffmpeg",
+    "electron",
+    "lossless",
+    "nvenc",
+    "hardware-acceleration"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0"
+  }
+}
