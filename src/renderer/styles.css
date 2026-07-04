@@ -79,7 +79,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding-bottom: 30px; /* Luft unter der Zeitleiste, damit sie nicht am Rand klebt */
+  /* untere Luft liefert jetzt die Statuszeile */
 }
 
 /* ---------- Titlebar (frameless) ---------- */
@@ -260,26 +260,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--xl);
+  padding: 24px; /* Rand rund um das Video */
   position: relative;
 }
 
 .video-wrapper {
   position: relative;
-  display: none; /* sichtbar sobald Video geladen */
-  max-width: 100%;
-  max-height: 100%;
+  display: none; /* sichtbar sobald Video geladen; Größe kommt per JS (contain-fit) */
   line-height: 0;
 }
 
 .app.has-video .video-wrapper {
-  display: inline-block;
+  display: block;
 }
 
 video {
   display: block;
-  max-width: 100%;
-  max-height: 90vh; /* Sicherheitsnetz – die genaue Größe steuert das Fenster-Fit */
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* skaliert responsiv mit dem Fenster, Seitenverhältnis bleibt */
   border-radius: var(--r-md);
   background: #000;
   box-shadow: var(--shadow-panel);
@@ -516,6 +515,74 @@ video {
   z-index: 2;
 }
 
+/* ---------- Statuszeile ---------- */
+.statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md);
+  height: 34px;
+  padding: 0 var(--lg);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.app:not(.has-video) .statusbar {
+  visibility: hidden;
+}
+
+#status-info,
+#status-crop {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+#status-info {
+  overflow: hidden;
+}
+
+#status-crop {
+  flex: none;
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+}
+
+#status-info .status-item:first-child {
+  padding-left: 0;
+}
+
+#status-info .status-item + .status-item {
+  border-left: 1px solid var(--border);
+}
+
+.statusbar svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--text-disabled);
+}
+
+#status-crop .status-item {
+  padding-right: 0;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+#status-crop svg {
+  color: var(--accent);
+}
+
 /* ---------- Crop-Panel (Ratio-Presets) ---------- */
 .crop-panel {
   display: flex;
@@ -687,12 +754,15 @@ video {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: var(--xs);
+  overflow-wrap: anywhere;
 }
 
 .progress-card .sub {
   font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: var(--lg);
+  overflow-wrap: anywhere; /* lange Dateinamen umbrechen statt aus der Box laufen */
+  word-break: break-word;
 }
 
 .progress-bar {
@@ -772,7 +842,8 @@ video {
   color: var(--text-secondary);
 }
 
-#lang-select {
+#lang-select,
+#encoder-select {
   background: var(--background);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -784,7 +855,8 @@ video {
   box-shadow: var(--shadow-panel);
 }
 
-#lang-select:focus {
+#lang-select:focus,
+#encoder-select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

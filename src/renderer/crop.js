@@ -21,6 +21,7 @@
       this.visible = false; // Rahmen erst nach dem Aufziehen sichtbar
       this.videoW = 0;
       this.videoH = 0;
+      this.onChange = null; // Callback bei jeder Rahmenänderung (Live-Pixelmaße)
       this._bind();
       this.setVisible(false);
     }
@@ -112,6 +113,7 @@
       this.rectEl.style.top = r.y * 100 + "%";
       this.rectEl.style.width = r.w * 100 + "%";
       this.rectEl.style.height = r.h * 100 + "%";
+      if (this.onChange && this.visible) this.onChange(this.getCropPixels());
     }
 
     _norm(clientX, clientY) {

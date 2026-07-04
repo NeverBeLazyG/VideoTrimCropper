@@ -122,6 +122,10 @@ function normalizeMeta(json) {
     const [num, den] = v.r_frame_rate.split("/").map(Number);
     if (den) fps = num / den;
   }
+  const bitrate = parseInt(
+    (json.format && json.format.bit_rate) || (v && v.bit_rate) || 0, 10
+  );
+  const size = parseInt((json.format && json.format.size) || 0, 10);
   return {
     duration: isFinite(duration) ? duration : 0,
     width: v ? v.width : 0,
@@ -130,6 +134,8 @@ function normalizeMeta(json) {
     videoCodec: v ? v.codec_name : null,
     audioCodec: a ? a.codec_name : null,
     hasAudio: !!a,
+    bitrate: isFinite(bitrate) ? bitrate : 0,
+    size: isFinite(size) ? size : 0,
   };
 }
 
@@ -216,7 +222,8 @@ function runExport(opts, onProgress) {
   }
 
   const promise = (async () => {
-    const encoder = reencode ? await getHwEncoder() : null;
+    // Bei 'software' bewusst libx264 (CPU) nutzen, sonst HW-Encoder erkennen.
+    const encoder = reencode && opts.encoderMode !== "software" ? await getHwEncoder() : null;
     if (killed) throw new Error("cancelled");
     try {
       return await runOnce(encoder);

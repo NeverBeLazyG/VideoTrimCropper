@@ -134,6 +134,12 @@
       <span class="time-label tabular" id="label-end">00:00.00</span>
     </div>
 
+    <!-- Statuszeile: Video-Infos + Live-Zuschnittmaße -->
+    <div class="statusbar" id="statusbar">
+      <span id="status-info"></span>
+      <span id="status-crop"></span>
+    </div>
+
   </div>
 
   <!-- Fortschritts-Overlay -->
@@ -164,7 +170,10 @@
       </div>
       <div class="setting-row">
         <span data-i18n="settings_encoder">Video-Encoder</span>
-        <span id="app-encoder" class="tabular">&hellip;</span>
+        <select id="encoder-select">
+          <option value="hardware">Hardware</option>
+          <option value="software">Software (x264 · CPU)</option>
+        </select>
       </div>
       <div class="setting-row">
         <span data-i18n="settings_version">Version</span>

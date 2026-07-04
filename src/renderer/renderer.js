@@ -38,13 +38,16 @@
     settingsClose: $("settings-close"),
     langSelect: $("lang-select"),
     appVersion: $("app-version"),
-    appEncoder: $("app-encoder"),
+    encoderSelect: $("encoder-select"),
+    statusInfo: $("status-info"),
+    statusCrop: $("status-crop"),
   };
 
   const state = {
     filePath: null,
     meta: null,
     userMode: "lossless",
+    encoderMode: "hardware", // 'hardware' (NVENC/AMF/QSV) oder 'software' (x264/CPU)
     cropEditing: false, // Rahmen wird gerade gezogen (dunkel)
     cropApplied: false, // Zuschnitt übernommen (Vorschau zeigt Ausschnitt, hell)
     wasPlayingBeforeScrub: false,
@@ -92,6 +95,55 @@
 
   const crop = new window.CropTool(els.cropOverlay, els.cropRect);
 
+  // --- Statuszeile -----------------------------------------------------------
+  function fmtBitrate(bps) {
+    if (!bps) return null;
+    if (bps >= 1000000) return (bps / 1e6).toFixed(1).replace(/\.0$/, "") + " Mbps";
+    return Math.round(bps / 1000) + " kbps";
+  }
+  function fmtSize(bytes) {
+    if (!bytes || bytes < 524288) return null; // < 0,5 MB nicht anzeigen
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + " GB";
+    return Math.round(bytes / 1048576) + " MB";
+  }
+  // Kleine, dezente Icons (wie im Windows-Tool)
+  const ICON = {
+    dim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>',
+    codec: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/></svg>',
+    fps: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    bitrate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+    audio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
+    audioOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>',
+    size: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>',
+    crop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/></svg>',
+  };
+  function statusItem(icon, text) {
+    return '<span class="status-item">' + ICON[icon] + "<span>" + text + "</span></span>";
+  }
+
+  function updateStatusInfo() {
+    const m = state.meta;
+    if (!m) { els.statusInfo.innerHTML = ""; return; }
+    const items = [];
+    if (m.width && m.height) items.push(statusItem("dim", m.width + " × " + m.height));
+    if (m.videoCodec) items.push(statusItem("codec", m.videoCodec.toUpperCase()));
+    if (m.fps) items.push(statusItem("fps", m.fps + " fps"));
+    const br = fmtBitrate(m.bitrate);
+    if (br) items.push(statusItem("bitrate", br));
+    items.push(m.hasAudio
+      ? statusItem("audio", m.audioCodec ? m.audioCodec.toUpperCase() : "Audio")
+      : statusItem("audioOff", window.I18N.t("no_audio")));
+    const sz = fmtSize(m.size);
+    if (sz) items.push(statusItem("size", sz));
+    els.statusInfo.innerHTML = items.join("");
+  }
+  // Live-Zuschnittmaße beim Ziehen/Skalieren des Rahmens.
+  function updateCropStatus(px) {
+    if (!state.cropEditing || !px) { els.statusCrop.innerHTML = ""; return; }
+    els.statusCrop.innerHTML = statusItem("crop", px.w + " × " + px.h + " px   ·   (" + px.x + ", " + px.y + ")");
+  }
+  crop.onChange = updateCropStatus;
+
   // --- Datei laden -----------------------------------------------------------
   async function loadFile(filePath) {
     let meta;
@@ -130,46 +182,72 @@
 
     app.classList.add("has-video");
     notice.classList.remove("show");
+    updateStatusInfo();
 
-    // Fenster präzise an die Videogröße anpassen (nach dem Layout messen)
-    requestAnimationFrame(() => fitWindowToVideo(true));
+    // Fenster passend öffnen, dann Video responsiv einpassen (nach dem Layout messen)
+    requestAnimationFrame(() => { fitWindowToVideo(true); layoutVideo(); });
   }
 
-  // Berechnet die Fenstergröße so, dass die Stage exakt der Videohöhe entspricht.
-  // recenter: true = Fenster zentrieren (frisches Öffnen), false = Position halten.
+  // Stage-Innenmaße (Content-Box ohne Padding).
+  function stageInner() {
+    const stage = $("stage");
+    const cs = getComputedStyle(stage);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    return { stage, padX, padY, w: stage.clientWidth - padX, h: stage.clientHeight - padY };
+  }
+
+  // Video responsiv in die Stage einpassen (contain): Höhe treibt die Größe,
+  // überschüssige Breite wird zu seitlichem Rand. Skaliert mit der Fenstergröße.
+  function layoutVideo() {
+    if (!state.filePath || state.cropApplied) return;
+    const vw = (state.meta && state.meta.width) || video.videoWidth;
+    const vh = (state.meta && state.meta.height) || video.videoHeight;
+    if (!vw || !vh) return;
+    const s = stageInner();
+    const aspect = vw / vh;
+    let w = s.w;
+    let h = w / aspect;
+    if (h > s.h) { h = s.h; w = h * aspect; }
+    els.videoWrapper.style.width = Math.round(w) + "px";
+    els.videoWrapper.style.height = Math.round(h) + "px";
+  }
+
+  // Anfangs-Fenstergröße: Video in nativer Größe (auf Bildschirm begrenzt),
+  // mit seitlicher Luft; vertikaler Rand kommt aus dem Stage-Padding.
+  // recenter: true = zentrieren (frisches Öffnen), false = Position halten.
   function fitWindowToVideo(recenter) {
     const vw = (state.meta && state.meta.width) || video.videoWidth;
     const vh = (state.meta && state.meta.height) || video.videoHeight;
     if (!vw || !vh) return;
 
     const stageEl = $("stage");
-    // Fixe Chrome-Höhe = Fensterhöhe minus Stage-Höhe (alle Nicht-Stage-Elemente).
-    const chromeH = window.innerHeight - stageEl.offsetHeight;
-    const sidePad = 48; // Stage-Padding links/rechts (2 × 24)
+    const s = stageInner();
+    const chromeH = window.innerHeight - stageEl.offsetHeight; // fixe Nicht-Stage-Höhe (inkl. Stage-Padding? nein)
 
     const availW = window.screen.availWidth * 0.9;
     const availH = window.screen.availHeight * 0.9;
     const aspect = vw / vh;
 
-    const maxVideoW = availW - sidePad;
-    const maxVideoH = availH - chromeH;
+    // Ziel-Videogröße: native, auf Bildschirm begrenzt (kein Upscale beim Öffnen)
+    const scale = Math.min((availW - s.padX) / vw, (availH - chromeH - s.padY) / vh, 1);
+    let targetW = vw * scale;
+    let targetH = vh * scale;
+    if (targetW < 420) { targetW = 420; targetH = targetW / aspect; }
 
-    let dispW = Math.min(vw, maxVideoW);
-    let dispH = dispW / aspect;
-    if (dispH > maxVideoH) {
-      dispH = maxVideoH;
-      dispW = dispH * aspect;
-    }
-    if (dispW < 480) { dispW = 480; dispH = dispW / aspect; }
-
-    const contentW = Math.round(Math.max(700, dispW + sidePad));
-    const contentH = Math.round(chromeH + dispH + 2);
+    const HAIR = 1.35; // 35% zusätzliche Breite = seitliche Luft
+    const contentW = Math.round(Math.max(700, targetW * HAIR + s.padX));
+    const contentH = Math.round(chromeH + targetH + s.padY);
     window.api.win.setSize(contentW, contentH, recenter);
   }
 
   // Fenster nach einem Crop-Zustandswechsel neu anpassen (Layout muss erst stehen).
   function refitAfterLayout() {
-    requestAnimationFrame(() => requestAnimationFrame(() => fitWindowToVideo(false)));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fitWindowToVideo(false);
+      if (state.cropApplied) renderCropPreview();
+      else layoutVideo();
+    }));
   }
 
   function unload() {
@@ -179,6 +257,7 @@
     state.filePath = null;
     state.meta = null;
     app.classList.remove("has-video");
+    updateStatusInfo();
     removeCrop();
     els.title.textContent = "Video Trim Cropper";
     document.title = "Video Trim Cropper";
@@ -195,6 +274,7 @@
     if (!state.meta.width && video.videoWidth) {
       crop.setVideoSize(video.videoWidth, video.videoHeight);
     }
+    layoutVideo();
   });
 
   video.addEventListener("timeupdate", () => {
@@ -302,12 +382,14 @@
     app.classList.add("crop-editing");
     app.classList.remove("crop-applied");
     clearCropPreview(); // volles Bild zeigen, damit der Rahmen passend liegt
+    layoutVideo();      // Wrapper wieder auf das volle Video einpassen
     if (state.cropApplied) crop.setVisible(true); // vorhandenen Rahmen anpassen
     else crop.resetForDraw();                     // neu aufziehen
     lockModeToAccurate();
   }
   function cancelCropEditing() {
     state.cropEditing = false;
+    els.statusCrop.textContent = "";
     app.classList.remove("crop-editing");
     if (state.cropApplied) {
       app.classList.add("crop-applied");
@@ -318,6 +400,7 @@
   }
   function applyCrop() {
     state.cropEditing = false;
+    els.statusCrop.textContent = "";
     app.classList.remove("crop-editing");
     if (crop.isFullFrame()) {
       removeCrop(); // kein echter Zuschnitt
@@ -330,10 +413,12 @@
   }
   function removeCrop() {
     state.cropEditing = false;
+    els.statusCrop.textContent = "";
     state.cropApplied = false;
     app.classList.remove("crop-editing", "crop-applied");
     crop.setVisible(false);
     clearCropPreview();
+    layoutVideo();
     unlockMode();
   }
 
@@ -362,6 +447,7 @@
 
   window.addEventListener("resize", () => {
     if (state.cropApplied) renderCropPreview();
+    else layoutVideo();
   });
 
   // --- Öffnen / Drag&Drop ----------------------------------------------------
@@ -425,6 +511,7 @@
       mode: state.userMode,
       crop: cropPixels,
       hasAudio: !!(state.meta && state.meta.hasAudio),
+      encoderMode: state.encoderMode,
       lang: window.I18N.currentLang,
     };
 
@@ -432,8 +519,9 @@
     els.progressCard.classList.remove("done");
     els.progressTitle.textContent = window.I18N.t("export_title");
     const isReencode = cropPixels || state.userMode === "accurate";
+    const usesHw = isReencode && state.encoderMode === "hardware" && state.appInfo && state.appInfo.hwAccel;
     els.progressSub.textContent = isReencode
-      ? window.I18N.t(state.appInfo && state.appInfo.hwAccel ? "export_hw" : "export_reencode")
+      ? window.I18N.t(usesHw ? "export_hw" : "export_reencode")
       : window.I18N.t("export_lossless");
     els.progressFill.style.width = "0%";
     els.btnCancelExport.textContent = window.I18N.t("cancel");
@@ -498,6 +586,7 @@
   });
   els.langSelect.addEventListener("change", () => {
     window.I18N.apply(els.langSelect.value);
+    updateStatusInfo(); // „kein Audio"/„no audio" neu setzen
   });
 
   // Sprache initialisieren (gespeichert oder Standard 'de')
@@ -511,8 +600,28 @@
   window.api.getAppInfo().then((info) => {
     state.appInfo = info;
     els.appVersion.textContent = info.name + " " + info.version;
-    els.appEncoder.textContent = info.encoder;
+
+    // Hardware-Option mit dem erkannten Encoder beschriften
+    const hwOpt = els.encoderSelect.querySelector('option[value="hardware"]');
+    if (info.hwAccel) {
+      hwOpt.textContent = info.encoder; // z. B. „NVIDIA NVENC"
+    } else {
+      hwOpt.textContent = "Hardware (—)";
+      hwOpt.disabled = true;
+    }
+    // gespeicherten Modus laden (Standard: Hardware, falls verfügbar)
+    let mode = null;
+    try { mode = localStorage.getItem("vtc_encoder"); } catch (_) {}
+    if (mode !== "hardware" && mode !== "software") mode = info.hwAccel ? "hardware" : "software";
+    if (mode === "hardware" && !info.hwAccel) mode = "software";
+    state.encoderMode = mode;
+    els.encoderSelect.value = mode;
   }).catch(() => {});
+
+  els.encoderSelect.addEventListener("change", () => {
+    state.encoderMode = els.encoderSelect.value;
+    try { localStorage.setItem("vtc_encoder", state.encoderMode); } catch (_) {}
+  });
 
   // Test-Handle (nur wenn VTC_DEBUG gesetzt ist, siehe main.js)
   window.__vtc = {

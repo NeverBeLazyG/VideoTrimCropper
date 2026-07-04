@@ -21,10 +21,13 @@ A clean, modern desktop app for Windows, inspired by the Windows Photos trim exp
 - **Trim + crop in one pass** — set your in/out points and crop region, export once.
 - **Lossless trimming** — pure stream copy (`-c copy`): instant, zero quality loss.
 - **Frame‑exact mode** — precise cuts via re‑encoding when you need them.
-- **Hardware‑accelerated encoding** — automatically uses **NVIDIA NVENC**, **AMD AMF** or **Intel Quick Sync**, with a safe software (x264) fallback.
-- **Draw‑to‑crop** — simply drag a rectangle with your mouse to crop.
-- **Interactive crop** — fine‑tune the region with handles, snap to aspect presets (Free · Original · 16:9 · 9:16 · 1:1 · 4:3), with a live cropped preview.
-- **Modern UI** — dark, Windows 11‑style interface with a purple accent; the window auto‑fits your video.
+- **Hardware _or_ software encoding** — automatically uses **NVIDIA NVENC**, **AMD AMF** or **Intel Quick Sync**, and you can switch to software **x264 (CPU)** in settings.
+- **Draw‑to‑crop** — simply drag a rectangle with your mouse to crop, with the exact pixel size shown live as you drag.
+- **Interactive crop** — fine‑tune with handles, snap to aspect presets (Free · Original · 16:9 · 9:16 · 1:1 · 4:3), with a live cropped preview.
+- **Responsive preview** — the video scales with the window, just like the Windows Photos trim tool.
+- **Info status bar** — resolution, codec, fps, bitrate, audio and file size at a glance.
+- **Open with** — open a video straight from the Windows right‑click _Open with_ menu.
+- **Modern UI** — dark, Windows 11‑style interface with a purple accent.
 - **Drag &amp; drop** — just drop a file in, or click to browse.
 - **Multi‑language** — English &amp; German, switchable in settings.
 - **Self‑contained** — ffmpeg/ffprobe are bundled; nothing else to install.
@@ -33,17 +36,21 @@ A clean, modern desktop app for Windows, inspired by the Windows Photos trim exp
 
 <div align="center">
 
-<img src="docs/screenshot-start.png" width="640" alt="Trim view" />
+<img src="docs/screenshot-trim.png" width="640" alt="Trim view" />
 
-*Just drop a video in to get started*
+*Trim — drag the timeline handles; the status bar shows resolution, codec, fps, bitrate &amp; more*
 
 <img src="docs/screenshot-crop.png" width="640" alt="Crop mode" />
 
-*Crop — drag a rectangle over the video, pick a ratio, hit Apply*
+*Crop — drag a rectangle over the video; the exact pixel size updates live as you drag*
 
-<img src="docs/screenshot-trim.png" width="640" alt="Drop screen" />
+<img src="docs/screenshot-encoder.png" width="640" alt="Encoder settings" />
 
-*Trim — drag the timeline handles to set start &amp; end*
+*Settings — switch between hardware (NVENC / AMF / QSV) and software (x264 · CPU) encoding*
+
+<img src="docs/screenshot-start.png" width="640" alt="Drop screen" />
+
+*Just drop a video in to get started*
 
 </div>
 
@@ -61,7 +68,7 @@ Grab the latest build from the **[Releases page](https://github.com/NeverBeLazyG
 
 ## 🚀 Usage
 
-1. **Open a video** — drag it onto the window, or click **Open file**.
+1. **Open a video** — drag it onto the window, click **Open file**, or right‑click a video in Explorer → **Open with → Video Trim Cropper**.
 2. **Trim** — drag the two handles on the timeline to set the start and end.
 3. **Crop** (optional) — click **Crop**, drag a rectangle over the video, adjust it, pick an aspect ratio, then **Apply**.
 4. **Pick the mode:**
@@ -77,7 +84,7 @@ Grab the latest build from the **[Releases page](https://github.com/NeverBeLazyG
 | Trim only · **Frame‑exact** | Re‑encodes for an exact cut. |
 | **Crop** (with or without trim) | Cropping changes the pixel dimensions, so it always re‑encodes. |
 
-Whenever the app re‑encodes, it detects your GPU and uses **hardware‑accelerated H.264** (NVENC / AMF / QSV) at visually‑lossless quality, falling back to software x264 if no supported GPU is available. Audio is stream‑copied so it stays lossless.
+Whenever the app re‑encodes, it detects your GPU and uses **hardware‑accelerated H.264** (NVENC / AMF / QSV) at visually‑lossless quality, falling back to software x264 if no supported GPU is available. You can also force **software x264 (CPU)** from the settings — handy since software encoding can look slightly better on some material. Audio is stream‑copied so it stays lossless.
 
 ## 🛠️ Build from source
 
