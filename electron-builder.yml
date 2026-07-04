@@ -2,6 +2,11 @@ appId: com.coderatilla.videotrimcropper
 productName: Video Trim Cropper
 copyright: Copyright © 2026 CoderAtilla
 
+# Kurzer Name für die Exe-FileDescription (Windows „Öffnen mit"-Menü),
+# ohne die ausführliche description in package.json zu ändern.
+extraMetadata:
+  description: Video Trim Cropper
+
 directories:
   output: dist
   buildResources: assets
