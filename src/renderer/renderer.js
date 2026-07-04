@@ -217,8 +217,13 @@
   // mit seitlicher Luft; vertikaler Rand kommt aus dem Stage-Padding.
   // recenter: true = zentrieren (frisches Öffnen), false = Position halten.
   function fitWindowToVideo(recenter) {
-    const vw = (state.meta && state.meta.width) || video.videoWidth;
-    const vh = (state.meta && state.meta.height) || video.videoHeight;
+    let vw = (state.meta && state.meta.width) || video.videoWidth;
+    let vh = (state.meta && state.meta.height) || video.videoHeight;
+    // Bei übernommenem Zuschnitt das Fenster an den Ausschnitt anpassen.
+    if (state.cropApplied && !crop.isFullFrame()) {
+      const px = crop.getCropPixels();
+      if (px.w && px.h) { vw = px.w; vh = px.h; }
+    }
     if (!vw || !vh) return;
 
     const stageEl = $("stage");
@@ -350,12 +355,11 @@
     if (!vw || !vh) return;
     const r = crop.rect;
     const cropAspect = (r.w * vw) / (r.h * vh);
-    const stage = $("stage");
-    const maxW = Math.max(120, stage.clientWidth - 48);
-    const maxH = window.innerHeight * 0.72;
-    let boxW = maxW;
+    // Zuschnitt-Vorschau in die Stage einpassen (contain), wie das volle Video.
+    const s = stageInner();
+    let boxW = s.w;
     let boxH = boxW / cropAspect;
-    if (boxH > maxH) { boxH = maxH; boxW = boxH * cropAspect; }
+    if (boxH > s.h) { boxH = s.h; boxW = boxH * cropAspect; }
 
     els.videoWrapper.classList.add("cropped");
     els.videoWrapper.style.width = boxW + "px";
