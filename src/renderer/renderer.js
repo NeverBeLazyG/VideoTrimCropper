@@ -394,6 +394,9 @@
   els.btnBack.addEventListener("click", unload);
   els.btnCancel.addEventListener("click", unload);
 
+  // Datei per „Öffnen mit" / Kommandozeile
+  window.api.onOpenFile((p) => { if (p) loadFile(p); });
+
   // --- Export ----------------------------------------------------------------
   let unsubProgress = window.api.onExportProgress((frac) => {
     els.progressFill.style.width = Math.round(frac * 100) + "%";

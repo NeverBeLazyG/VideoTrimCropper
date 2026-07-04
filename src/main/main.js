@@ -2,11 +2,34 @@
 const { app, BrowserWindow, ipcMain, screen } = require("electron");
 const path = require("path");
 const url = require("url");
+const fs = require("fs");
 const ffmpeg = require("./ffmpeg");
 const dialogs = require("./dialogs");
 
 let mainWindow = null;
 let activeExport = null; // { cancel } während eines laufenden Exports
+
+// Ersten übergebenen Videopfad aus den Startargumenten ziehen (z. B. „Öffnen mit").
+// Scannt alle Argumente – robust gegenüber unterschiedlichem argv-Layout
+// (Erststart vs. second-instance, gepackt vs. Entwicklung).
+function fileFromArgv(argv) {
+  for (let i = 1; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a || a.startsWith("-") || a === ".") continue;
+    const ext = path.extname(a).slice(1).toLowerCase();
+    if (!dialogs.VIDEO_EXTS.includes(ext)) continue;
+    try {
+      if (fs.existsSync(a) && fs.statSync(a).isFile()) return a;
+    } catch (_) {}
+  }
+  return null;
+}
+
+function openFileInWindow(filePath) {
+  if (mainWindow && filePath) {
+    mainWindow.webContents.send("open-file", filePath);
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -27,6 +50,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+
+  // Beim Start via „Öffnen mit" den übergebenen Dateipfad laden.
+  const initialFile = fileFromArgv(process.argv);
+  if (initialFile) {
+    mainWindow.webContents.once("did-finish-load", () => openFileInWindow(initialFile));
+  }
 
   // Dev-Komfort (env-gesteuert, in Produktion inaktiv): Sprache/Datei vorgeben.
   if (process.env.VTC_LANG || process.env.VTC_OPEN) {
@@ -138,12 +167,25 @@ ipcMain.on("win:toggleMaximize", () => {
 ipcMain.on("win:close", () => mainWindow && mainWindow.close());
 
 // --- App-Lifecycle ---------------------------------------------------------
-app.whenReady().then(createWindow);
+// Single-Instance: eine zweite „Öffnen mit"-Datei landet im bestehenden Fenster.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (_e, argv) => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+    openFileInWindow(fileFromArgv(argv));
+  });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+  app.whenReady().then(createWindow);
 
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+}
