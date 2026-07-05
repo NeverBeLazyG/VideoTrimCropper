@@ -21,6 +21,13 @@
     labelEnd: $("label-end"),
     modeSwitch: $("mode-switch"),
     btnCrop: $("btn-crop"),
+    btnQuality: $("btn-quality"),
+    btnQualityCrop: $("btn-quality-crop"),
+    qualityOverlay: $("quality-overlay"),
+    qualityClose: $("quality-close"),
+    codecSelect: $("codec-select"),
+    qualityRange: $("quality-range"),
+    qualityValue: $("quality-value"),
     btnCropApply: $("btn-crop-apply"),
     btnCropReset: $("btn-crop-reset"),
     ratioGroup: $("ratio-group"),
@@ -48,6 +55,7 @@
     meta: null,
     userMode: "lossless",
     encoderMode: "hardware", // 'hardware' (NVENC/AMF/QSV) oder 'software' (x264/CPU)
+    quality: { codec: "h264", crf: 20 }, // persistente Re-Encode-Einstellungen
     cropEditing: false, // Rahmen wird gerade gezogen (dunkel)
     cropApplied: false, // Zuschnitt übernommen (Vorschau zeigt Ausschnitt, hell)
     wasPlayingBeforeScrub: false,
@@ -121,8 +129,29 @@
     return '<span class="status-item">' + ICON[icon] + "<span>" + text + "</span></span>";
   }
 
-  function updateStatusInfo() {
+  // Bei angewendetem Zuschnitt die Statuszeile auf den Ausschnitt beziehen:
+  // neue Auflösung + proportional geschätzte Bitrate/Größe (nach Pixelfläche).
+  function displayMeta() {
     const m = state.meta;
+    if (!m) return null;
+    if (state.cropApplied && !state.cropEditing && !crop.isFullFrame()) {
+      const px = crop.getCropPixels();
+      if (px.w && px.h && m.width && m.height) {
+        const ratio = (px.w * px.h) / (m.width * m.height);
+        return {
+          ...m,
+          width: px.w,
+          height: px.h,
+          bitrate: m.bitrate ? Math.round(m.bitrate * ratio) : m.bitrate,
+          size: m.size ? Math.round(m.size * ratio) : m.size,
+        };
+      }
+    }
+    return m;
+  }
+
+  function updateStatusInfo() {
+    const m = displayMeta();
     if (!m) { els.statusInfo.innerHTML = ""; return; }
     const items = [];
     if (m.width && m.height) items.push(statusItem("dim", m.width + " × " + m.height));
@@ -321,12 +350,19 @@
     }
   });
 
+  // Qualität-Button nur zeigen, wenn re-encodiert wird (frame-genau oder Crop).
+  function updateReencodeUI() {
+    const reencode = state.userMode === "accurate" || state.cropApplied || state.cropEditing;
+    app.classList.toggle("reencode", !!(state.filePath && reencode));
+  }
+
   // --- Modus-Umschalter ------------------------------------------------------
   function setMode(mode) {
     state.userMode = mode;
     els.modeSwitch.querySelectorAll("button").forEach((b) => {
       b.classList.toggle("active", b.dataset.mode === mode);
     });
+    updateReencodeUI();
   }
   els.modeSwitch.querySelectorAll("button").forEach((b) => {
     b.addEventListener("click", () => {
@@ -390,6 +426,8 @@
     if (state.cropApplied) crop.setVisible(true); // vorhandenen Rahmen anpassen
     else crop.resetForDraw();                     // neu aufziehen
     lockModeToAccurate();
+    updateReencodeUI();
+    updateStatusInfo(); // beim Bearbeiten Vollbild-Maße zeigen
   }
   function cancelCropEditing() {
     state.cropEditing = false;
@@ -401,6 +439,8 @@
     } else {
       unlockMode();
     }
+    updateReencodeUI();
+    updateStatusInfo(); // ggf. wieder Ausschnitt-Maße zeigen
   }
   function applyCrop() {
     state.cropEditing = false;
@@ -414,6 +454,8 @@
     app.classList.add("crop-applied");
     renderCropPreview();
     lockModeToAccurate();
+    updateReencodeUI();
+    updateStatusInfo(); // Statuszeile auf den Ausschnitt umstellen
   }
   function removeCrop() {
     state.cropEditing = false;
@@ -424,6 +466,8 @@
     clearCropPreview();
     layoutVideo();
     unlockMode();
+    updateReencodeUI();
+    updateStatusInfo(); // zurück auf Originalmaße
   }
 
   els.btnCrop.addEventListener("click", () => {
@@ -516,6 +560,8 @@
       crop: cropPixels,
       hasAudio: !!(state.meta && state.meta.hasAudio),
       encoderMode: state.encoderMode,
+      codec: state.quality.codec,
+      crf: state.quality.crf,
       lang: window.I18N.currentLang,
     };
 
@@ -574,6 +620,10 @@
       closeSettings();
       return;
     }
+    if (e.code === "Escape" && els.qualityOverlay.classList.contains("show")) {
+      els.qualityOverlay.classList.remove("show");
+      return;
+    }
     if (e.code === "Space" && state.filePath) {
       e.preventDefault();
       els.btnPlay.click();
@@ -625,6 +675,48 @@
   els.encoderSelect.addEventListener("change", () => {
     state.encoderMode = els.encoderSelect.value;
     try { localStorage.setItem("vtc_encoder", state.encoderMode); } catch (_) {}
+  });
+
+  // --- Qualität / Codec (persistent) ----------------------------------------
+  function qualityLabel() {
+    return "CRF " + state.quality.crf;
+  }
+  function applyQualityToUI() {
+    els.codecSelect.value = state.quality.codec;
+    els.qualityRange.value = String(state.quality.crf);
+    els.qualityValue.textContent = qualityLabel();
+  }
+  function saveQuality() {
+    try { localStorage.setItem("vtc_quality", JSON.stringify(state.quality)); } catch (_) {}
+  }
+  (function initQuality() {
+    try {
+      const raw = localStorage.getItem("vtc_quality");
+      if (raw) {
+        const q = JSON.parse(raw);
+        if (q && (q.codec === "h264" || q.codec === "hevc")) state.quality.codec = q.codec;
+        const crf = parseInt(q && q.crf, 10);
+        if (crf >= 14 && crf <= 32) state.quality.crf = crf;
+      }
+    } catch (_) {}
+    applyQualityToUI();
+  })();
+
+  const openQuality = () => els.qualityOverlay.classList.add("show");
+  els.btnQuality.addEventListener("click", openQuality);
+  els.btnQualityCrop.addEventListener("click", openQuality);
+  els.qualityClose.addEventListener("click", () => els.qualityOverlay.classList.remove("show"));
+  els.qualityOverlay.addEventListener("click", (e) => {
+    if (e.target === els.qualityOverlay) els.qualityOverlay.classList.remove("show");
+  });
+  els.codecSelect.addEventListener("change", () => {
+    state.quality.codec = els.codecSelect.value === "hevc" ? "hevc" : "h264";
+    saveQuality();
+  });
+  els.qualityRange.addEventListener("input", () => {
+    state.quality.crf = parseInt(els.qualityRange.value, 10);
+    els.qualityValue.textContent = qualityLabel();
+    saveQuality();
   });
 
   // Test-Handle (nur wenn VTC_DEBUG gesetzt ist, siehe main.js)

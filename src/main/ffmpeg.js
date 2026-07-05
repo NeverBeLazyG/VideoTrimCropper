@@ -28,9 +28,12 @@ function resolveBinaries() {
 const { ffmpegPath, ffprobePath } = resolveBinaries();
 
 // --- Hardware-Encoder-Erkennung -------------------------------------------
-// Bevorzugte Reihenfolge; der erste, der auf diesem System tatsächlich
-// funktioniert, wird für das Re-Encoding verwendet.
-const HW_CANDIDATES = ["h264_nvenc", "h264_amf", "h264_qsv"];
+// Bevorzugte Reihenfolge je Codec; der erste, der auf diesem System
+// tatsächlich funktioniert, wird für das Re-Encoding verwendet.
+const HW_CANDIDATES = {
+  h264: ["h264_nvenc", "h264_amf", "h264_qsv"],
+  hevc: ["hevc_nvenc", "hevc_amf", "hevc_qsv"],
+};
 
 function testEncoder(name) {
   return new Promise((resolve) => {
@@ -46,41 +49,47 @@ function testEncoder(name) {
   });
 }
 
-let _hwPromise = null;
-async function detectHwEncoder() {
-  for (const enc of HW_CANDIDATES) {
+// Erkennung pro Codec zwischenspeichern.
+const _hwPromises = {};
+async function detectHwEncoder(codec) {
+  for (const enc of HW_CANDIDATES[codec] || HW_CANDIDATES.h264) {
     try {
       if (await testEncoder(enc)) return enc;
     } catch (_) {}
   }
-  return null; // → Software (libx264)
+  return null; // → Software (libx264/libx265)
 }
-function getHwEncoder() {
-  if (!_hwPromise) _hwPromise = detectHwEncoder();
-  return _hwPromise;
+function getHwEncoder(codec) {
+  const key = codec === "hevc" ? "hevc" : "h264";
+  if (!_hwPromises[key]) _hwPromises[key] = detectHwEncoder(key);
+  return _hwPromises[key];
 }
 
 function encoderLabel(enc) {
-  switch (enc) {
-    case "h264_nvenc": return "NVIDIA NVENC";
-    case "h264_amf": return "AMD AMF";
-    case "h264_qsv": return "Intel Quick Sync";
-    default: return "Software (x264)";
-  }
+  if (!enc) return "Software (x264)";
+  if (enc.includes("nvenc")) return "NVIDIA NVENC";
+  if (enc.includes("amf")) return "AMD AMF";
+  if (enc.includes("qsv")) return "Intel Quick Sync";
+  return "Software";
 }
 
-// Encoder-spezifische Qualitätsargumente (visuell verlustfrei).
-function videoEncoderArgs(enc) {
-  switch (enc) {
-    case "h264_nvenc":
-      return ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "20", "-b:v", "0"];
-    case "h264_amf":
-      return ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "20", "-qp_p", "20"];
-    case "h264_qsv":
-      return ["-c:v", "h264_qsv", "-global_quality", "20"];
-    default:
-      return ["-c:v", "libx264", "-crf", "18", "-preset", "veryfast"];
+// Encoder-spezifische Qualitätsargumente. `quality` ist ein CRF/CQ-artiger
+// Wert (kleiner = bessere Qualität, größere Datei). `codec` steuert die
+// Software-Bibliothek, falls kein HW-Encoder aktiv ist.
+function videoEncoderArgs(enc, quality, codec) {
+  const q = String(quality != null ? quality : 20);
+  if (enc && enc.includes("nvenc")) {
+    return ["-c:v", enc, "-preset", "p5", "-rc", "vbr", "-cq", q, "-b:v", "0"];
   }
+  if (enc && enc.includes("amf")) {
+    return ["-c:v", enc, "-quality", "quality", "-rc", "cqp", "-qp_i", q, "-qp_p", q];
+  }
+  if (enc && enc.includes("qsv")) {
+    return ["-c:v", enc, "-global_quality", q];
+  }
+  // Software
+  const lib = codec === "hevc" ? "libx265" : "libx264";
+  return ["-c:v", lib, "-crf", q, "-preset", "veryfast"];
 }
 
 // --- Metadaten via ffprobe -------------------------------------------------
@@ -145,6 +154,8 @@ function normalizeMeta(json) {
 // encoder: HW-Encoder-Name oder null (Software) – nur beim Re-Encoding relevant.
 function buildArgs(opts, encoder) {
   const { input, output, start, end, mode, crop, hasAudio } = opts;
+  const codec = opts.codec === "hevc" ? "hevc" : "h264";
+  const quality = opts.crf != null ? opts.crf : 20;
   const duration = Math.max(0, end - start);
   const reencode = !!crop || mode === "accurate";
 
@@ -161,8 +172,10 @@ function buildArgs(opts, encoder) {
       const { x, y, w, h } = crop;
       args.push("-vf", `crop=${w}:${h}:${x}:${y}`);
     }
-    args.push(...videoEncoderArgs(encoder));
+    args.push(...videoEncoderArgs(encoder, quality, codec));
     args.push("-pix_fmt", "yuv420p");
+    // HEVC in MP4 braucht das hvc1-Tag für Windows-/QuickTime-Wiedergabe.
+    if (codec === "hevc") args.push("-tag:v", "hvc1");
     if (hasAudio) args.push("-c:a", "copy"); // Audio verlustfrei kopieren
   }
 
@@ -222,8 +235,8 @@ function runExport(opts, onProgress) {
   }
 
   const promise = (async () => {
-    // Bei 'software' bewusst libx264 (CPU) nutzen, sonst HW-Encoder erkennen.
-    const encoder = reencode && opts.encoderMode !== "software" ? await getHwEncoder() : null;
+    // Bei 'software' bewusst libx264/libx265 (CPU) nutzen, sonst HW-Encoder erkennen.
+    const encoder = reencode && opts.encoderMode !== "software" ? await getHwEncoder(opts.codec) : null;
     if (killed) throw new Error("cancelled");
     try {
       return await runOnce(encoder);

@@ -91,6 +91,9 @@
     <div class="time-row">
       <div class="time-display tabular" id="time-display">00 : 00 . 00</div>
       <div class="crop-slot">
+        <button class="toggle-crop icon-only" id="btn-quality" data-i18n-title="quality_title" title="Qualität &amp; Codec" aria-label="Qualität">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><circle cx="9" cy="6" r="2.3" fill="currentColor"/><circle cx="15" cy="12" r="2.3" fill="currentColor"/><circle cx="7" cy="18" r="2.3" fill="currentColor"/></svg>
+        </button>
         <button class="toggle-crop" id="btn-crop">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/></svg>
           <span data-i18n="crop">Zuschneiden</span>
@@ -112,6 +115,9 @@
         <button class="btn btn-primary btn-apply" id="btn-crop-apply">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
           <span data-i18n="apply">Übernehmen</span>
+        </button>
+        <button class="btn btn-secondary icon-only" id="btn-quality-crop" data-i18n-title="quality_title" title="Qualität &amp; Codec" aria-label="Qualität">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><circle cx="9" cy="6" r="2.3" fill="currentColor"/><circle cx="15" cy="12" r="2.3" fill="currentColor"/><circle cx="7" cy="18" r="2.3" fill="currentColor"/></svg>
         </button>
         <button class="btn btn-secondary" id="btn-crop-reset" data-i18n="reset">Zurück</button>
       </div>
@@ -178,6 +184,36 @@
       <div class="setting-row">
         <span data-i18n="settings_version">Version</span>
         <span id="app-version" class="tabular">&hellip;</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Qualität / Codec -->
+  <div class="modal-overlay" id="quality-overlay">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 data-i18n="quality_title">Qualität &amp; Codec</h3>
+        <button class="icon-btn" id="quality-close" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="setting-row">
+        <span data-i18n="quality_codec">Codec</span>
+        <select id="codec-select">
+          <option value="h264">H.264 (AVC)</option>
+          <option value="hevc">H.265 (HEVC)</option>
+        </select>
+      </div>
+      <div class="setting-row quality-row">
+        <div class="quality-head">
+          <span data-i18n="quality_level">Qualität</span>
+          <span id="quality-value" class="tabular">CRF 20</span>
+        </div>
+        <input type="range" id="quality-range" min="14" max="32" step="1" value="20" />
+        <div class="quality-hints">
+          <span data-i18n="quality_smaller">Kleinere Datei</span>
+          <span data-i18n="quality_better">Beste Qualität</span>
+        </div>
       </div>
     </div>
   </div>

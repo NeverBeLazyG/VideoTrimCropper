@@ -428,6 +428,9 @@ video {
 .crop-slot {
   grid-column: 3;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--sm);
 }
 
 /* Im Zuschneiden-Modus wird der Zuschneiden-Button nicht gebraucht */
@@ -678,11 +681,29 @@ video {
   background: var(--surface-hover);
 }
 
-.app.crop-editing .toggle-crop,
-.app.crop-applied .toggle-crop {
+.app.crop-editing #btn-crop,
+.app.crop-applied #btn-crop {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
+}
+
+/* Icon-only-Variante der Buttons (quadratischer, kein Text) */
+.icon-only {
+  padding: 7px 9px;
+}
+.icon-only svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* Player-Ansicht: Qualität-Button links neben Crop, nur im Re-Encode-Modus */
+#btn-quality {
+  visibility: hidden;
+}
+.app.reencode:not(.crop-editing) #btn-quality {
+  visibility: visible;
 }
 
 .toggle-crop svg {
@@ -843,7 +864,8 @@ video {
 }
 
 #lang-select,
-#encoder-select {
+#encoder-select,
+#codec-select {
   background: var(--background);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -856,9 +878,37 @@ video {
 }
 
 #lang-select:focus,
-#encoder-select:focus {
+#encoder-select:focus,
+#codec-select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* ---------- Qualität-Dialog ---------- */
+.quality-row {
+  display: block;
+}
+.quality-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sm);
+}
+.quality-head #quality-value {
+  color: var(--text-secondary);
+}
+#quality-range {
+  width: 100%;
+  direction: rtl; /* links = kleinere Datei, rechts = beste Qualität */
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.quality-hints {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 /* ---------- Tooltip ---------- */

@@ -22,6 +22,7 @@ A clean, modern desktop app for Windows, inspired by the Windows Photos trim exp
 - **Lossless trimming** — pure stream copy (`-c copy`): instant, zero quality loss.
 - **Frame‑exact mode** — precise cuts via re‑encoding when you need them.
 - **Hardware _or_ software encoding** — automatically uses **NVIDIA NVENC**, **AMD AMF** or **Intel Quick Sync**, and you can switch to software **x264 (CPU)** in settings.
+- **Quality &amp; codec control** — pick **H.264** or **H.265 (HEVC)** and dial in the compression with a quality slider; your choice is remembered between sessions.
 - **Draw‑to‑crop** — simply drag a rectangle with your mouse to crop, with the exact pixel size shown live as you drag.
 - **Interactive crop** — fine‑tune with handles, snap to aspect presets (Free · Original · 16:9 · 9:16 · 1:1 · 4:3), with a live cropped preview.
 - **Responsive preview** — the video scales with the window, just like the Windows Photos trim tool.
@@ -84,7 +85,7 @@ Grab the latest build from the **[Releases page](https://github.com/NeverBeLazyG
 | Trim only · **Frame‑exact** | Re‑encodes for an exact cut. |
 | **Crop** (with or without trim) | Cropping changes the pixel dimensions, so it always re‑encodes. |
 
-Whenever the app re‑encodes, it detects your GPU and uses **hardware‑accelerated H.264** (NVENC / AMF / QSV) at visually‑lossless quality, falling back to software x264 if no supported GPU is available. You can also force **software x264 (CPU)** from the settings — handy since software encoding can look slightly better on some material. Audio is stream‑copied so it stays lossless.
+Whenever the app re‑encodes, it detects your GPU and uses **hardware‑accelerated** encoding (NVENC / AMF / QSV), falling back to software (x264 / x265) if no supported GPU is available. You can also force **software (CPU)** from the settings — handy since software encoding can look slightly better on some material. The **Quality** button lets you choose the codec (**H.264** or **H.265/HEVC**) and set the compression level; the setting is saved for next time. Audio is stream‑copied so it stays lossless.
 
 ## 🛠️ Build from source
 
