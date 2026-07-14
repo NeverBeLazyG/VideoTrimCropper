@@ -14,6 +14,12 @@ directories:
 files:
   - src/**/*
   - package.json
+  # ffprobe-static liefert Binaries für ALLE Plattformen/Architekturen mit.
+  # Der Build läuft nur für Windows x64 — macOS-, Linux- und 32-Bit-ffprobe
+  # werden nie ausgeführt (siehe ffprobe-static.path). Spart ~288 MB.
+  - "!node_modules/ffprobe-static/bin/darwin/**"
+  - "!node_modules/ffprobe-static/bin/linux/**"
+  - "!node_modules/ffprobe-static/bin/win32/ia32/**"
 
 # ffmpeg/ffprobe-Binaries dürfen nicht ins asar-Archiv gepackt werden,
 # sonst sind sie zur Laufzeit nicht ausführbar.
